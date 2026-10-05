@@ -66,9 +66,11 @@ secrets, not sample config, and never print their contents or commit them anywhe
 
 `.env` is the single source of truth for InfluxDB/Grafana/Enphase config (`DB_USER`, `DB_PW`,
 `ORG`, `BUCKET`, `ADMIN_TOKEN`, `URL`, `TZ`, `ENPHASE_*`) and is loaded both by docker-compose
-(`env_file:`) and by the standalone scripts above. `enphase_cfg.yml` separately configures the
-`envoy-logger` container (gateway credentials/URL, the same InfluxDB token duplicated by hand, and
-per-inverter array/position tags used for Grafana panel labeling) — it is not derived from `.env`,
-so the token must be kept in sync manually if it's ever rotated. `DEP/write_influx.py` and
-`enphase_local_maybe_dep/query_influx.py` previously hardcoded that same token again in source;
-they've been switched to read it from `.env` instead.
+(`env_file:`) and by the standalone scripts above. `ADMIN_TOKEN` is a full org-admin InfluxDB
+token; only the backfill/admin scripts (`daily_report/main.py`, `DEP/write_influx.py`,
+`enphase_local_maybe_dep/query_influx.py`) use it. `enphase_cfg.yml` separately configures the
+`envoy-logger` container (gateway credentials/URL, per-inverter array/position tags used for
+Grafana panel labeling, and its own InfluxDB token) — it is not derived from `.env`. That token is
+intentionally scoped to read/write on just `high_rate`/`low_rate` (created via the InfluxDB v2 API,
+mirroring the unused read/write auth that `create_buckets.sh` already creates), not the admin
+token, since `envoy-logger` only ever needs those two buckets.
