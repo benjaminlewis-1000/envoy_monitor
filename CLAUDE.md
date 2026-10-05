@@ -80,9 +80,20 @@ manually into whatever Python environment you run them in.
   design (InfluxDB overwrites by exact tag-set + timestamp), so no manifest needed, unlike the
   backup script above.
 
-Both of the above exist because `high_rate`'s raw 5s data won't be kept forever (see the "pruning"
-discussion — a live retention policy is still pending as of this writing); anything not captured in
-`daily_stats` or the quarterly cold backups before that happens is gone for good once it expires.
+- **`backups/backup_small_buckets_daily.py`** — nightly full backup of the three small buckets
+  (`low_rate`, `computed_information`, `daily_stats`) with the same two-tier pruning scheme used by
+  other backup scripts on this host (`solar_dashboard`'s, `video_breaker`'s): keep every daily
+  backup from the last 3 days, then one per ISO week for 4 more weeks, then delete. Unlike
+  `high_rate`, these buckets are small enough that a full nightly `influx backup` per bucket is
+  cheap — no quarter-windowing needed. Run via cron (`40 2 * * *`, with `flock`), `--verify`d the
+  same way as the quarterly script.
+
+`high_rate` has a live retention policy of 120 days (set via the InfluxDB v2 API, since the CLI has
+no flag for it) — raw 5s data older than that expires from the *live* bucket automatically via
+InfluxDB's own shard-based cleanup (a periodic background sweep, not instant on policy change).
+Anything older than 120 days only exists in the quarterly cold backups and in whatever
+`daily_stats`/`low_rate` already derived from it before it expired — this is why both of those were
+built and verified before the retention policy was ever applied.
 
 ## Configuration and secrets
 
