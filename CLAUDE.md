@@ -39,7 +39,9 @@ run them from anywhere, not just the repo root. None has a requirements file; de
 (`influxdb_client`, `pandas`, `pytz`, `requests`, `numpy`, `python-dotenv`) must be installed
 manually into whatever Python environment you run them in.
 
-- **`daily_report/main.py`** — the one script meant to run repeatedly (e.g. via cron). On each run
+- **`daily_report/main.py`** — the one script that's actually scheduled: the host user crontab runs
+  it twice daily (`5 6,13 * * *`, via `~/.anaconda3/envs/server_scripts/bin/python`, not any
+  container). On each run
   it finds the last `daily_totals` point already written to the InfluxDB `computed_information`
   bucket, then calls the Enphase cloud API (`daily_report/enphase_api_daily.py`) once per missing
   day up to (not including) today, writing one `daily_totals` point per day with a 30s pause
