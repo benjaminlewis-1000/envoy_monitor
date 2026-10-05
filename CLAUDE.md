@@ -8,7 +8,6 @@ A home solar-monitoring stack for an Enphase Envoy system. It logs live inverter
 InfluxDB, visualizes it in Grafana, and separately backfills daily production/consumption totals
 and historical utility-bill data via one-off Python scripts. There is no test suite, build step,
 or CI — this is a personal ops/data-pipeline repo, not an application with a release process.
-Not a git repository.
 
 ## Services (docker-compose.yml)
 
@@ -55,10 +54,8 @@ manually into whatever Python environment you run them in.
   `energy_import_telemetry`) — there is no single endpoint that returns all of these together.
   First-time auth is interactive (prompts for a pasted authorization code on stdin); after that it
   runs unattended using the saved refresh token.
-- **`DEP/write_influx.py`**, **`monthly_bill/historical_bills.py`**, **`enphase_local_maybe_dep/*`**
-  — exploratory/one-off/deprecated scripts (note the `DEP` and `maybe_dep` naming). Several contain
-  hardcoded test credentials/URLs in `if __name__ == "__main__"` blocks rather than reading `.env` —
-  don't treat those as the current connection config.
+- **`monthly_bill/historical_bills.py`** — one-off backfill script (hardcoded historical bill data)
+  that writes a `bill_data` measurement to the `test` bucket. Already run; not scheduled anywhere.
 
 ## Configuration and secrets
 
@@ -69,10 +66,10 @@ secrets, not sample config, and never print their contents or commit them anywhe
 `.env` is the single source of truth for InfluxDB/Grafana/Enphase config (`DB_USER`, `DB_PW`,
 `ORG`, `BUCKET`, `ADMIN_TOKEN`, `URL`, `TZ`, `ENPHASE_*`) and is loaded both by docker-compose
 (`env_file:`) and by the standalone scripts above. `ADMIN_TOKEN` is a full org-admin InfluxDB
-token; only the backfill/admin scripts (`daily_report/main.py`, `DEP/write_influx.py`,
-`enphase_local_maybe_dep/query_influx.py`) use it. `enphase_cfg.yml` separately configures the
-`envoy-logger` container (gateway credentials/URL, per-inverter array/position tags used for
-Grafana panel labeling, and its own InfluxDB token) — it is not derived from `.env`. That token is
-intentionally scoped to read/write on just `high_rate`/`low_rate` (created via the InfluxDB v2 API,
-mirroring the unused read/write auth that `create_buckets.sh` already creates), not the admin
-token, since `envoy-logger` only ever needs those two buckets.
+token; only the backfill/admin scripts (`daily_report/main.py`, `monthly_bill/historical_bills.py`)
+use it. `enphase_cfg.yml` separately configures the `envoy-logger` container (gateway
+credentials/URL, per-inverter array/position tags used for Grafana panel labeling, and its own
+InfluxDB token) — it is not derived from `.env`. That token is intentionally scoped to read/write
+on just `high_rate`/`low_rate` (created via the InfluxDB v2 API, mirroring the unused read/write
+auth that `create_buckets.sh` already creates), not the admin token, since `envoy-logger` only ever
+needs those two buckets.
