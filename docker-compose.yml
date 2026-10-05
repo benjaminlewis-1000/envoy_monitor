@@ -13,6 +13,7 @@ services:
     volumes:
       - /mnt/fast_storage/appdata/solar/database:/var/lib/influxdb
       - /mnt/fast_storage/appdata/solar/database:/var/lib/influxdb2
+      - /mnt/fast_storage/backups/solar:/backups
 #      - ./entrypoint.sh:/entrypoint.sh
       # - create_buckets.sh:/docker-entrypoint-initdb.d/create_buckets.sh
 #     entrypoint: ["/entrypoint.sh"]
@@ -26,6 +27,7 @@ services:
       - DOCKER_INFLUXDB_INIT_ORG=${ORG}
       - DOCKER_INFLUXDB_INIT_BUCKET=${BUCKET}
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${ADMIN_TOKEN}
+      - INFLUX_TOKEN=${ADMIN_TOKEN}
       - TZ=America/New_York
     networks:
       - traefik_proxy
