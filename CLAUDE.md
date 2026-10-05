@@ -56,6 +56,33 @@ manually into whatever Python environment you run them in.
   runs unattended using the saved refresh token.
 - **`monthly_bill/historical_bills.py`** — one-off backfill script (hardcoded historical bill data)
   that writes a `bill_data` measurement to the `test` bucket. Already run; not scheduled anywhere.
+- **`backups/backup_high_rate_quarterly.py`** — cold-storage backup of `high_rate` (the raw 5s
+  telemetry), run daily via cron (`15 3 * * *`, with `flock`) but idempotent against a
+  `completed_quarters.json` manifest, so it only actually does work once per calendar quarter.
+  Since `influx backup` (OSS CLI, no REST equivalent) always snapshots a bucket's *entire* current
+  contents, this copies just one calendar-quarter window (±2 days padding) into a scratch bucket via
+  Flux `to()` first, then backs up only that scratch bucket — avoiding a full-bucket snapshot (and
+  its overlap/redundancy) every run. Output: `/mnt/fast_storage/backups/solar/high_rate_quarterly/`,
+  picked up automatically by the existing `rclone sync /mnt/fast_storage/backups opendrive:...` cron.
+  Running daily (not on a fixed post-quarter date) means a missed window (server down over a quarter
+  boundary) still gets caught on the next successful day. `--verify` restores each new backup into a
+  scratch bucket and compares point counts before deleting it, so "backed up" means verified
+  restorable, not just "the command exited 0." Needs the `envoy_influx` container's `/backups` mount
+  and `INFLUX_TOKEN` env var (both in `docker-compose.yml`) since `influx backup`/`restore` only run
+  inside the container (via `docker exec`, using `/snap/bin/docker` — not just `docker` — because
+  cron's minimal `PATH` doesn't include `/snap/bin`).
+- **`daily_stats/compute_daily_stats.py`** — computes per-day summary stats from `high_rate` that
+  `low_rate`'s own daily Wh-per-panel summary doesn't capture (peak W + when, reporting coverage,
+  clipping proxy, line-level volatility, grid import/export time split, and `relative_perf` — a
+  panel's daily Wh against the median of others sharing its `array` tag, which cancels out weather
+  and orientation so a sustained low ratio means a real, local problem). Writes to a new, tiny
+  `daily_stats` bucket. Run daily via cron (`35 0 * * *`) for the previous day; idempotent by
+  design (InfluxDB overwrites by exact tag-set + timestamp), so no manifest needed, unlike the
+  backup script above.
+
+Both of the above exist because `high_rate`'s raw 5s data won't be kept forever (see the "pruning"
+discussion — a live retention policy is still pending as of this writing); anything not captured in
+`daily_stats` or the quarterly cold backups before that happens is gone for good once it expires.
 
 ## Configuration and secrets
 
