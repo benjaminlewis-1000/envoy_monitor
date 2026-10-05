@@ -1,0 +1,10 @@
+FROM python:slim
+
+RUN apt-get update
+RUN apt-get install -y git 
+
+RUN pip install --force-reinstall git+https://github.com/amykyta3/envoy-logger
+
+RUN rm -rf /var/lib/apt/lists/*
+
+ENTRYPOINT ["/usr/local/bin/python", "-m", "envoy_logger", "/enphase_cfg.yml"]

@@ -1,0 +1,14 @@
+# Secrets / credentials
+.env
+enphase_cfg.yml
+enphase_tokens.json
+daily_report/enphase_tokens.json
+credentials.json
+enphase_local_maybe_dep/credentials.json
+enphase_local_maybe_dep/configuration/gateway.cer
+
+# Python
+__pycache__/
+*.pyc
+
+# InfluxDB/Grafana data volumes are host-mounted outside this repo, not tracked here

@@ -1,0 +1,86 @@
+# version: '3.8'
+services:
+  influxdb:
+    build:
+      context: .
+      dockerfile: Dockerfile_influx
+      args:
+        buildno: 1
+    image: influxdb # or a specific version like influxdb:3-core
+    container_name: envoy_influx
+    ports:
+      - "8086:8086"
+    volumes:
+      - /mnt/fast_storage/appdata/solar/database:/var/lib/influxdb
+      - /mnt/fast_storage/appdata/solar/database:/var/lib/influxdb2
+#      - ./entrypoint.sh:/entrypoint.sh
+      # - create_buckets.sh:/docker-entrypoint-initdb.d/create_buckets.sh
+#     entrypoint: ["/entrypoint.sh"]
+    env_file:
+      - .env
+    environment:
+      # Example environment variables for InfluxDB setup (adjust as needed)
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${DB_USER}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${DB_PW}
+      - DOCKER_INFLUXDB_INIT_ORG=${ORG}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${BUCKET}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${ADMIN_TOKEN}
+      - TZ=America/New_York
+    networks:
+      - traefik_proxy
+    restart: always
+
+  monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile_monitor
+      args:
+        buildno: 1
+    image: enphase_monitor
+    container_name: enphase_monitor
+    volumes:
+      - ./enphase_cfg.yml:/enphase_cfg.yml
+    env_file: 
+      - .env
+    networks:
+      - traefik_proxy
+    restart: always
+    environment:
+      - TZ=America/New_York
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - /mnt/fast_storage/appdata/solar/grafana:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${DB_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${DB_PW}
+      - GF_AUTH_PROXY_ENABLED=true
+      - GF_AUTH_PROXY_HEADER_NAME=Remote-User
+      - GF_AUTH_PROXY_HEADER_PROPERTY=username # benjamin
+      - GF_AUTH_PROXY_AUTO_SIGN_UP=true # Automatically creates the user in Grafana
+      - GF_AUTH_PROXY_WHITELIST=127.0.0.1, 172.16.0.0/12 # Trust your proxy's IP
+      - GF_SERVER_ROOT_URL=https://solar.exploretheworld.tech
+      - GF_AUTH_PROXY_LOGOUT_URL=https://auth.exploretheworld.tech/logout?rd=https://solar.exploretheworld.tech
+      # Optional: Configure database connection if not using the default SQLite
+      # - GF_DATABASE_TYPE=postgres
+      # - GF_DATABASE_HOST=db:5432
+      # - GF_DATABASE_NAME=grafana
+      # - GF_DATABASE_USER=grafana
+      # - GF_DATABASE_PASSWORD=grafana_password
+    env_file: 
+      - .env
+    networks:
+      - traefik_proxy
+    restart: always
+
+networks:
+  default:
+    external: true # Allow access to host's network.
+    name: infranet
+  traefik_proxy:
+    external: true
