@@ -56,21 +56,28 @@ manually into whatever Python environment you run them in.
   runs unattended using the saved refresh token.
 - **`monthly_bill/historical_bills.py`** — one-off backfill script (hardcoded historical bill data)
   that writes a `bill_data` measurement to the `test` bucket. Already run; not scheduled anywhere.
+- **`backups/influx_lp_backup.py`** — shared mechanism used by both `high_rate` backup scripts
+  below. Backing up a time window without InfluxDB OSS's `influx backup` (which has no
+  `--start`/`--end` flag, only whole-bucket) used to mean copying the window into a scratch bucket
+  first — which means writing a duplicate copy of the data into the live database before you can
+  even back it up. Instead: query the window day-by-day with Flux's `pivot()` (so each row already
+  carries all its fields), build line-protocol text directly, gzip-compress it incrementally
+  straight into the one destination file. No scratch bucket, no duplicate live data, no `influx`
+  CLI, no `docker exec`. Restore is the mirror image — InfluxDB's write API accepts a
+  gzip-encoded body directly (`Content-Encoding: gzip`), confirmed empirically, so a restore is
+  just reading the file's bytes and `POST`ing them back; no decompression step needed either.
 - **`backups/backup_high_rate_quarterly.py`** — cold-storage backup of `high_rate` (the raw 5s
-  telemetry), run daily via cron (`15 3 * * *`, with `flock`) but idempotent against a
-  `completed_quarters.json` manifest, so it only actually does work once per calendar quarter.
-  Since `influx backup` (OSS CLI, no REST equivalent) always snapshots a bucket's *entire* current
-  contents, this copies just one calendar-quarter window (±2 days padding) into a scratch bucket via
-  Flux `to()` first, then backs up only that scratch bucket — avoiding a full-bucket snapshot (and
-  its overlap/redundancy) every run. Output: `/mnt/fast_storage/backups/solar/high_rate_quarterly/`,
-  picked up automatically by the existing `rclone sync /mnt/fast_storage/backups opendrive:...` cron.
-  Running daily (not on a fixed post-quarter date) means a missed window (server down over a quarter
-  boundary) still gets caught on the next successful day. `--verify` restores each new backup into a
-  scratch bucket and compares point counts before deleting it, so "backed up" means verified
-  restorable, not just "the command exited 0." Needs the `envoy_influx` container's `/backups` mount
-  and `INFLUX_TOKEN` env var (both in `docker-compose.yml`) since `influx backup`/`restore` only run
-  inside the container (via `docker exec`, using `/snap/bin/docker` — not just `docker` — because
-  cron's minimal `PATH` doesn't include `/snap/bin`).
+  telemetry) for one calendar-quarter window (±2 days padding) at a time, via `influx_lp_backup.py`.
+  Run daily via cron (`15 3 * * *`, with `flock`) but idempotent against a `completed_quarters.json`
+  manifest, so it only actually does work once per calendar quarter. Output:
+  `<label>.lp.gz` under `/mnt/fast_storage/backups/solar/high_rate_quarterly/`, picked up
+  automatically by the existing `rclone sync /mnt/fast_storage/backups opendrive:...` cron. Running
+  daily (not on a fixed post-quarter date) means a missed window (server down over a quarter
+  boundary) still gets caught on the next successful day. `--verify` restores each new backup into
+  a scratch bucket, compares point counts, then deletes it — so "backed up" means verified
+  restorable, not just "the command exited 0." (The four quarters already archived before this
+  mechanism existed — `2025Q4` through `2026Q3` — are still in the older `influx backup` TSM
+  directory format; they remain valid, just restored differently. Only new quarters use `.lp.gz`.)
 - **`daily_stats/compute_daily_stats.py`** — computes per-day summary stats from `high_rate` that
   `low_rate`'s own daily Wh-per-panel summary doesn't capture (peak W + when, reporting coverage,
   clipping proxy, line-level volatility, grid import/export time split, and `relative_perf` — a
@@ -90,13 +97,14 @@ manually into whatever Python environment you run them in.
 
 - **`backups/backup_high_rate_current_quarter.py`** — daily rolling backup that closes the gap
   `backup_high_rate_quarterly.py` leaves open: that script only archives a quarter once it's fully
-  over (+2 days), so the in-progress quarter had no backup at all for up to ~3 months. This one
-  keeps a persistent scratch bucket (`current_quarter_staging`) that accumulates across the
-  quarter, copying only what's new since its last run (tracked in `state.json`) so the daily cost
-  stays roughly constant instead of growing across the quarter. `influx backup` then snapshots the
-  whole accumulated bucket into one fixed, overwritten directory — no dated history, no pruning;
-  this is a gap-filler, not an archive. On quarter rollover it detects the label change and starts
-  fresh. Run via cron (`50 2 * * *`, with `flock`), `--verify`d the same way as the other two.
+  over (+2 days), so the in-progress quarter had no backup at all for up to ~3 months. Re-queries
+  "quarter start − 2 days → now" fresh every run (via `influx_lp_backup.py`, same as the quarterly
+  script) and overwrites one fixed file (`current_quarter.lp.gz`) — deliberately not incremental,
+  to avoid keeping any persistent duplicate of live data sitting in InfluxDB across the whole
+  quarter; the daily query cost grows somewhat as the quarter progresses instead, which is the
+  accepted trade for not duplicating storage. No dated history, no pruning — this is a gap-filler,
+  not an archive. Run via cron (`50 2 * * *`, with `flock`), `--verify`d the same way as the other
+  two.
 
 `high_rate` has a live retention policy of 120 days (set via the InfluxDB v2 API, since the CLI has
 no flag for it) — raw 5s data older than that expires from the *live* bucket automatically via
