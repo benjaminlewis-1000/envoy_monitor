@@ -88,6 +88,16 @@ manually into whatever Python environment you run them in.
   cheap — no quarter-windowing needed. Run via cron (`40 2 * * *`, with `flock`), `--verify`d the
   same way as the quarterly script.
 
+- **`backups/backup_high_rate_current_quarter.py`** — daily rolling backup that closes the gap
+  `backup_high_rate_quarterly.py` leaves open: that script only archives a quarter once it's fully
+  over (+2 days), so the in-progress quarter had no backup at all for up to ~3 months. This one
+  keeps a persistent scratch bucket (`current_quarter_staging`) that accumulates across the
+  quarter, copying only what's new since its last run (tracked in `state.json`) so the daily cost
+  stays roughly constant instead of growing across the quarter. `influx backup` then snapshots the
+  whole accumulated bucket into one fixed, overwritten directory — no dated history, no pruning;
+  this is a gap-filler, not an archive. On quarter rollover it detects the label change and starts
+  fresh. Run via cron (`50 2 * * *`, with `flock`), `--verify`d the same way as the other two.
+
 `high_rate` has a live retention policy of 120 days (set via the InfluxDB v2 API, since the CLI has
 no flag for it) — raw 5s data older than that expires from the *live* bucket automatically via
 InfluxDB's own shard-based cleanup (a periodic background sweep, not instant on policy change).
