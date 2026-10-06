@@ -54,6 +54,8 @@ ORG = ENV["ORG"]
 TOKEN = ENV["ADMIN_TOKEN"]
 TZ = pytz.timezone(ENV["TZ"])
 
+PAD_DAYS = 2  # matches backup_high_rate_quarterly.py's end-of-quarter padding
+
 
 def log(msg):
     print(f"[{datetime.now().isoformat(timespec='seconds')}] {msg}", flush=True)
@@ -200,9 +202,14 @@ def run_restore_check():
 # ---------------------------------------------------------------------------
 
 def current_quarter_label_and_start(now_local_date):
+    """Returns (label, padded_start). Starting PAD_DAYS before the calendar
+    boundary deliberately overlaps with the quarterly archiver's own
+    +PAD_DAYS end padding (e.g. Q3's archive window ends at Oct 3, this
+    covers from Sep 29 for Q4), so there's no gap at the seam between a
+    just-completed quarter and this rolling one."""
     q = (now_local_date.month - 1) // 3 + 1
     start_month = (q - 1) * 3 + 1
-    start = date(now_local_date.year, start_month, 1)
+    start = date(now_local_date.year, start_month, 1) - timedelta(days=PAD_DAYS)
     return f"{now_local_date.year}Q{q}", start
 
 
