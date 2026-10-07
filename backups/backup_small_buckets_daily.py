@@ -67,6 +67,17 @@ def docker_exec(*args):
     return result.stdout
 
 
+def fix_ownership(container_path):
+    """`influx backup` runs as root inside the container, so anything it
+    writes through the /backups bind mount lands on the host as root:root,
+    mode 600 -- unreadable/undeletable by the unprivileged user this script
+    itself runs as. Fix it from inside the container immediately after
+    writing, where we *do* have root, rather than needing host-level sudo."""
+    uid, gid = os.getuid(), os.getgid()
+    docker_exec("chown", "-R", f"{uid}:{gid}", container_path)
+    docker_exec("chmod", "-R", "755", container_path)
+
+
 # ---------------------------------------------------------------------------
 # Backup
 # ---------------------------------------------------------------------------
@@ -80,6 +91,7 @@ def backup_bucket(bucket, today_str):
     container_path = f"{CONTAINER_BACKUP_ROOT}/{label}"
     docker_exec("influx", "backup", container_path,
                 "--bucket", bucket, "--org", ORG, "--host", INFLUX_HTTP_URL)
+    fix_ownership(container_path)
     log(f"  {bucket}: backed up to {host_path}")
     return label
 
