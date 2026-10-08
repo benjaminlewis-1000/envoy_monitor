@@ -12,3 +12,10 @@
 [2026-10-07T02:40:10]   daily_stats: backed up to /mnt/fast_storage/backups/solar/envoy_small_buckets_daily/daily_stats_2026-10-07
 [2026-10-07T02:40:12]   daily_stats: restore check OK (62523 points match)
 [2026-10-07T02:40:12] Pruning old backups...
+[2026-10-08T02:40:02]   low_rate: backed up to /mnt/fast_storage/backups/solar/envoy_small_buckets_daily/low_rate_2026-10-08
+[2026-10-08T02:40:05]   low_rate: restore check OK (10527 points match)
+[2026-10-08T02:40:07]   computed_information: backed up to /mnt/fast_storage/backups/solar/envoy_small_buckets_daily/computed_information_2026-10-08
+[2026-10-08T02:40:11]   computed_information: restore check OK (2572 points match)
+[2026-10-08T02:40:13]   daily_stats: backed up to /mnt/fast_storage/backups/solar/envoy_small_buckets_daily/daily_stats_2026-10-08
+[2026-10-08T02:40:15]   daily_stats: restore check OK (62718 points match)
+[2026-10-08T02:40:15] Pruning old backups...
