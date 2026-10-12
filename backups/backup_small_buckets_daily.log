@@ -58,3 +58,16 @@
 [2026-10-11T02:40:15]     deleting: computed_information_2026-10-08
 [2026-10-11T02:40:15]   low_rate: keeping 4, deleting 1
 [2026-10-11T02:40:15]     deleting: low_rate_2026-10-08
+[2026-10-12T02:40:02]   low_rate: backed up to /mnt/fast_storage/backups/solar/envoy_small_buckets_daily/low_rate_2026-10-12
+[2026-10-12T02:40:05]   low_rate: restore check OK (10659 points match)
+[2026-10-12T02:40:06]   computed_information: backed up to /mnt/fast_storage/backups/solar/envoy_small_buckets_daily/computed_information_2026-10-12
+[2026-10-12T02:40:11]   computed_information: restore check OK (2600 points match)
+[2026-10-12T02:40:12]   daily_stats: backed up to /mnt/fast_storage/backups/solar/envoy_small_buckets_daily/daily_stats_2026-10-12
+[2026-10-12T02:40:15]   daily_stats: restore check OK (63498 points match)
+[2026-10-12T02:40:15] Pruning old backups...
+[2026-10-12T02:40:15]   computed_information: keeping 4, deleting 1
+[2026-10-12T02:40:15]     deleting: computed_information_2026-10-09
+[2026-10-12T02:40:15]   low_rate: keeping 4, deleting 1
+[2026-10-12T02:40:15]     deleting: low_rate_2026-10-09
+[2026-10-12T02:40:15]   daily_stats: keeping 4, deleting 1
+[2026-10-12T02:40:15]     deleting: daily_stats_2026-10-09
